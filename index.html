@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+
+
+<meta charset="utf-8">
+
+
+
+<title>AAL Digital Signage</title>
+
+
+
+<style>
+
+
+
+html,body{
+
+margin:0;
+
+padding:0;
+
+width:100%;
+
+height:100%;
+
+background:#000;
+
+overflow:hidden;
+
+}
+
+
+
+#screen{
+
+width:100vw;
+
+height:100vh;
+
+display:flex;
+
+justify-content:center;
+
+align-items:center;
+
+}
+
+
+
+img,video{
+
+width:100%;
+
+height:100%;
+
+object-fit:contain;
+
+}
+
+
+
+.loading{
+
+color:white;
+
+font-family:Arial;
+
+font-size:24px;
+
+}
+
+
+
+</style>
+
+
+
+</head>
+
+
+
+<body>
+
+
+
+<div id="screen">
+
+<div class="loading">Loading...</div>
+
+</div>
+
+
+
+<script>
+
+
+
+const API_URL =
+
+"https://script.google.com/macros/s/AKfycbyKaucY5Klz1dFTVopD__ru81gMf4Ixju42vlOKc125LOEBkDGV17grmIRQtEovL9YLRA/exec";
+
+
+
+let playlist = [];
+
+let current = 0;
+
+let isPlaying = false;
+
+
+
+async function loadPlaylist(){
+
+
+
+ try{
+
+
+
+  const response = await fetch(API_URL);
+
+
+
+  playlist = await response.json();
+
+
+
+  if(!isPlaying && playlist.length > 0){
+
+
+
+      isPlaying = true;
+
+      playItem();
+
+
+
+  }
+
+
+
+ }catch(err){
+
+
+
+  console.log(err);
+
+
+
+ }
+
+
+
+}
+
+
+
+function nextItem(){
+
+
+
+ current++;
+
+
+
+ if(current >= playlist.length){
+
+
+
+    current = 0;
+
+
+
+ }
+
+
+
+ playItem();
+
+
+
+}
+
+
+
+function playItem(){
+
+
+
+ const item = playlist[current];
+
+
+
+ const screen =
+
+ document.getElementById("screen");
+
+
+
+ screen.innerHTML = "";
+
+
+
+ const fileUrl =
+
+ "https://drive.google.com/uc?export=download&id="
+
+ + item.fileId;
+
+
+
+ if(item.type === "image"){
+
+
+
+    const img =
+
+    document.createElement("img");
+
+
+
+    img.src = fileUrl;
+
+
+
+    screen.appendChild(img);
+
+
+
+    setTimeout(
+
+      nextItem,
+
+      item.duration * 1000
+
+    );
+
+
+
+ }
+
+
+
+ if(item.type === "video"){
+
+
+
+    const video =
+
+    document.createElement("video");
+
+
+
+    video.src = fileUrl;
+
+
+
+    video.autoplay = true;
+
+    video.muted = true;
+
+    video.playsInline = true;
+
+
+
+    video.onended =
+
+      nextItem;
+
+
+
+    screen.appendChild(video);
+
+
+
+ }
+
+
+
+}
+
+
+
+loadPlaylist();
+
+
+
+setInterval(
+
+ loadPlaylist,
+
+ 60000
+
+);
+
+
+
+</script>
+
+
+
+</body>
+
+</html>
