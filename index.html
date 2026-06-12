@@ -3,238 +3,206 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>AAL Digital Signage</title>
 
 <style>
+    html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background: #000;
+        overflow: hidden;
+    }
+    
+    #screen {
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: #000;
+    }
 
-html,body{
-    margin:0;
-    padding:0;
-    width:100%;
-    height:100%;
-    background:#000;
-    overflow:hidden;
-}
+    /* Container untuk Gambar */
+    #image-container {
+        width: 100%;
+        height: 100%;
+        display: none; /* Disembunyikan secara default */
+    }
 
-#screen{
-    width:100vw;
-    height:100vh;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    background:#000;
-}
+    #image-container img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
 
-img,video{
-    width:100%;
-    height:100%;
-    object-fit:contain;
-}
+    /* Container untuk YouTube */
+    #youtube-container {
+        width: 100%;
+        height: 100%;
+        display: none; /* Disembunyikan secara default */
+        pointer-events: none; /* Agar tidak bisa diklik di layar sentuh */
+    }
 
-.loading{
-    color:#fff;
-    font-family:Arial, sans-serif;
-    font-size:24px;
-}
+    iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+    }
 
+    .loading {
+        color: white;
+        font-family: Arial, sans-serif;
+        font-size: 24px;
+        position: absolute;
+    }
 </style>
-</head>
 
+<!-- Memuat API YouTube -->
+<script src="https://www.youtube.com/iframe_api"></script>
+
+</head>
 <body>
 
 <div id="screen">
-    <div class="loading">Loading Digital Signage...</div>
+    <div id="loading-text" class="loading">Loading Digital Signage...</div>
+    <div id="image-container"></div>
+    <div id="youtube-container">
+        <div id="yt-player"></div>
+    </div>
 </div>
 
 <script>
-
-const API_URL =
-"https://script.google.com/macros/s/AKfycbyKaucY5Klz1dFTVopD__ru81gMf4Ixju42vlOKc125LOEBkDGV17grmIRQtEovL9YLRA/exec";
+// PASTIKAN URL INI BENAR
+const API_URL = "URL_APPS_SCRIPT_ANDA";
 
 let playlist = [];
 let current = 0;
 let timer = null;
 let started = false;
+let ytPlayer;
+let isYtReady = false;
+
+// Fungsi ini dipanggil otomatis oleh YouTube saat scriptnya siap
+function onYouTubeIframeAPIReady() {
+    ytPlayer = new YT.Player('yt-player', {
+        height: '100%',
+        width: '100%',
+        playerVars: {
+            'autoplay': 1,
+            'controls': 0, // Hilangkan tombol play/pause
+            'rel': 0, // Jangan tampilkan video terkait di akhir
+            'showinfo': 0,
+            'modestbranding': 1,
+            'mute': 1 // Wajib mute agar bisa autoplay di browser TV
+        },
+        events: {
+            'onReady': function(event) {
+                isYtReady = true;
+                if(!started && playlist.length > 0) {
+                    started = true;
+                    playItem();
+                }
+            },
+            'onStateChange': onPlayerStateChange
+        }
+    });
+}
+
+// Mendeteksi jika video YouTube sudah selesai
+function onPlayerStateChange(event) {
+    // Angka 0 artinya video ENDED (Selesai)
+    if (event.data === 0) {
+        nextItem();
+    }
+}
 
 async function loadPlaylist(){
-
-    try{
-
+    try {
         const response = await fetch(API_URL);
-
         playlist = await response.json();
+        console.log("Playlist Update:", playlist);
 
-        console.log("Playlist", playlist);
+        document.getElementById("loading-text").style.display = "none";
 
         if(playlist.length === 0){
-
-            document.getElementById("screen").innerHTML =
-            '<div class="loading">Playlist Kosong</div>';
-
+            document.getElementById("loading-text").innerHTML = "Playlist Kosong";
+            document.getElementById("loading-text").style.display = "block";
             return;
         }
 
-        if(!started){
-
+        // Mulai play jika YouTube API sudah ready dan belum mulai
+        if(!started && isYtReady){
             started = true;
             playItem();
-
         }
-
-    }catch(error){
-
-        console.error(error);
-
-        document.getElementById("screen").innerHTML =
-        '<div class="loading">Gagal Mengambil Playlist</div>';
-
+    } catch(error) {
+        console.error("Gagal load playlist:", error);
     }
-
 }
 
 function nextItem(){
-
     clearTimeout(timer);
-
-    current++;
-
-    if(current >= playlist.length){
-
-        current = 0;
-
+    if(ytPlayer && typeof ytPlayer.stopVideo === 'function') {
+        ytPlayer.stopVideo(); // Stop video jika sedang jalan
     }
-
+    
+    current++;
+    if(current >= playlist.length){
+        current = 0;
+    }
     playItem();
-
 }
 
 function playItem(){
-
     if(playlist.length === 0) return;
 
     const item = playlist[current];
+    console.log("Memutar:", item.title);
 
-    console.log("Playing", item);
+    const type = String(item.type || "").trim().toLowerCase();
+    
+    const imgContainer = document.getElementById("image-container");
+    const ytContainer = document.getElementById("youtube-container");
 
-    const screen =
-    document.getElementById("screen");
-
-    screen.innerHTML = "";
-
-    const type =
-    String(item.type || "")
-    .trim()
-    .toLowerCase();
-
-    // IMAGE
+    // JIKA KONTEN ADALAH GAMBAR (GOOGLE DRIVE)
     if(type === "image"){
+        ytContainer.style.display = "none";
+        imgContainer.style.display = "block";
+        
+        imgContainer.innerHTML = 
+            `<img src="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w2000" 
+            onerror="console.error('Image gagal:', '${item.fileId}'); nextItem();">`;
 
-        const img =
-        document.createElement("img");
-
-        img.src =
-        "https://drive.google.com/thumbnail?id="
-        + item.fileId +
-        "&sz=w2000";
-
-        img.onload = function(){
-
-            console.log("Image loaded");
-
-        };
-
-        img.onerror = function(){
-
-            console.error(
-                "Image gagal:",
-                item.fileId
-            );
-
-            setTimeout(
-                nextItem,
-                1000
-            );
-
-        };
-
-        screen.appendChild(img);
-
-        timer =
-        setTimeout(
-            nextItem,
-            (Number(item.duration) || 15) * 1000
-        );
-
+        timer = setTimeout(nextItem, (Number(item.duration) || 15) * 1000);
         return;
     }
 
-    // VIDEO
-if(type === "video"){
+    // JIKA KONTEN ADALAH VIDEO (YOUTUBE)
+    if(type === "video"){
+        imgContainer.style.display = "none";
+        ytContainer.style.display = "block";
 
-    const video = document.createElement("video");
-
-    video.autoplay = true;
-    video.muted = true;
-    video.playsInline = true;
-    video.controls = false;
-    video.preload = "auto";
-
-    video.src =
-    "https://drive.google.com/uc?export=download&id="
-    + item.fileId;
-
-    video.onloadedmetadata = function(){
-
-        console.log(
-            "Durasi video:",
-            video.duration
-        );
-
-        video.play();
-
-    };
-
-    video.onended = function(){
-
-        nextItem();
-
-    };
-
-    video.onerror = function(){
-
-        console.error(
-            "Video gagal:",
-            item.fileId
-        );
-
-        nextItem();
-
-    };
-
-    screen.appendChild(video);
-
+        if(isYtReady) {
+            ytPlayer.loadVideoById(item.fileId);
+        } else {
+            console.error("YouTube Player belum siap");
+            setTimeout(nextItem, 2000);
+        }
         return;
     }
 
-    console.error(
-        "Type tidak dikenali:",
-        item.type
-    );
-
-    setTimeout(
-        nextItem,
-        1000
-    );
-
+    // Jika tipe tidak dikenali, lewati setelah 1 detik
+    console.error("Type tidak dikenali:", item.type);
+    timer = setTimeout(nextItem, 1000);
 }
 
+// Jalankan pengambilan data pertama kali
 loadPlaylist();
 
-setInterval(
-    loadPlaylist,
-    60000
-);
+// Auto refresh playlist dari Google Sheet setiap 1 menit (tanpa mengganggu layar)
+setInterval(loadPlaylist, 60000);
 
 </script>
 
