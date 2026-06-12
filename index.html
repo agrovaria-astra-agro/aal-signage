@@ -8,7 +8,7 @@
 
 <style>
 
-html, body{
+html,body{
     margin:0;
     padding:0;
     width:100%;
@@ -26,20 +26,19 @@ html, body{
     background:#000;
 }
 
-img, video{
+img,video{
     width:100%;
     height:100%;
     object-fit:contain;
 }
 
 .loading{
-    color:white;
+    color:#fff;
     font-family:Arial, sans-serif;
     font-size:24px;
 }
 
 </style>
-
 </head>
 
 <body>
@@ -55,7 +54,8 @@ const API_URL =
 
 let playlist = [];
 let current = 0;
-let playing = false;
+let timer = null;
+let started = false;
 
 async function loadPlaylist(){
 
@@ -65,7 +65,7 @@ async function loadPlaylist(){
 
         playlist = await response.json();
 
-        console.log("Playlist:", playlist);
+        console.log("Playlist", playlist);
 
         if(playlist.length === 0){
 
@@ -75,15 +75,14 @@ async function loadPlaylist(){
             return;
         }
 
-        if(!playing){
+        if(!started){
 
-            playing = true;
+            started = true;
             playItem();
 
         }
 
-    }
-    catch(error){
+    }catch(error){
 
         console.error(error);
 
@@ -95,6 +94,8 @@ async function loadPlaylist(){
 }
 
 function nextItem(){
+
+    clearTimeout(timer);
 
     current++;
 
@@ -114,14 +115,20 @@ function playItem(){
 
     const item = playlist[current];
 
+    console.log("Playing", item);
+
     const screen =
     document.getElementById("screen");
 
     screen.innerHTML = "";
 
-    console.log("Playing:", item);
+    const type =
+    String(item.type || "")
+    .trim()
+    .toLowerCase();
 
-    if(String(item.type).toLowerCase() === "image"){
+    // IMAGE
+    if(type === "image"){
 
         const img =
         document.createElement("img");
@@ -131,6 +138,12 @@ function playItem(){
         + item.fileId +
         "&sz=w2000";
 
+        img.onload = function(){
+
+            console.log("Image loaded");
+
+        };
+
         img.onerror = function(){
 
             console.error(
@@ -138,32 +151,63 @@ function playItem(){
                 item.fileId
             );
 
-            setTimeout(nextItem,1000);
+            setTimeout(
+                nextItem,
+                1000
+            );
 
         };
 
         screen.appendChild(img);
 
+        timer =
         setTimeout(
             nextItem,
-            (item.duration || 15) * 1000
+            (Number(item.duration) || 15) * 1000
         );
 
+        return;
     }
 
-    else if(String(item.type).toLowerCase() === "video"){
+    // VIDEO
+    if(type === "video"){
 
         const video =
         document.createElement("video");
-
-        video.src =
-        "https://drive.google.com/uc?export=download&id="
-        + item.fileId;
 
         video.autoplay = true;
         video.muted = true;
         video.playsInline = true;
         video.controls = false;
+        video.preload = "auto";
+
+        video.src =
+        "https://drive.google.com/uc?id="
+        + item.fileId;
+
+        video.onloadeddata = function(){
+
+            console.log("Video loaded");
+
+            const playPromise =
+            video.play();
+
+            if(playPromise !== undefined){
+
+                playPromise.catch(err => {
+
+                    console.error(err);
+
+                    setTimeout(
+                        nextItem,
+                        1000
+                    );
+
+                });
+
+            }
+
+        };
 
         video.onerror = function(){
 
@@ -172,12 +216,14 @@ function playItem(){
                 item.fileId
             );
 
-            setTimeout(nextItem,1000);
+            setTimeout(
+                nextItem,
+                1000
+            );
 
         };
 
-        video.onended =
-        function(){
+        video.onended = function(){
 
             nextItem();
 
@@ -185,18 +231,18 @@ function playItem(){
 
         screen.appendChild(video);
 
+        return;
     }
 
-    else{
+    console.error(
+        "Type tidak dikenali:",
+        item.type
+    );
 
-        console.error(
-            "Type tidak dikenal:",
-            item.type
-        );
-
-        setTimeout(nextItem,1000);
-
-    }
+    setTimeout(
+        nextItem,
+        1000
+    );
 
 }
 
