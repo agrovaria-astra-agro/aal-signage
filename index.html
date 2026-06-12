@@ -170,66 +170,49 @@ function playItem(){
     }
 
     // VIDEO
-    if(type === "video"){
+if(type === "video"){
 
-        const video =
-        document.createElement("video");
+    const video = document.createElement("video");
 
-        video.autoplay = true;
-        video.muted = true;
-        video.playsInline = true;
-        video.controls = false;
-        video.preload = "auto";
+    video.autoplay = true;
+    video.muted = true;
+    video.playsInline = true;
+    video.controls = false;
+    video.preload = "auto";
 
-        video.src =
-        "https://drive.google.com/uc?id="
-        + item.fileId;
+    video.src =
+    "https://drive.google.com/uc?export=download&id="
+    + item.fileId;
 
-        video.onloadeddata = function(){
+    video.onloadedmetadata = function(){
 
-            console.log("Video loaded");
+        console.log(
+            "Durasi video:",
+            video.duration
+        );
 
-            const playPromise =
-            video.play();
+        video.play();
 
-            if(playPromise !== undefined){
+    };
 
-                playPromise.catch(err => {
+    video.onended = function(){
 
-                    console.error(err);
+        nextItem();
 
-                    setTimeout(
-                        nextItem,
-                        1000
-                    );
+    };
 
-                });
+    video.onerror = function(){
 
-            }
+        console.error(
+            "Video gagal:",
+            item.fileId
+        );
 
-        };
+        nextItem();
 
-        video.onerror = function(){
+    };
 
-            console.error(
-                "Video gagal:",
-                item.fileId
-            );
-
-            setTimeout(
-                nextItem,
-                1000
-            );
-
-        };
-
-        video.onended = function(){
-
-            nextItem();
-
-        };
-
-        screen.appendChild(video);
+    screen.appendChild(video);
 
         return;
     }
